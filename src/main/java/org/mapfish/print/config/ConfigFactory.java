@@ -2,11 +2,14 @@ package org.mapfish.print.config;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 
 import com.codahale.metrics.MetricRegistry;
-import org.ho.yaml.CustomYamlConfig;
-import org.ho.yaml.YamlConfig;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.MapperFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.mapfish.print.ThreadResources;
 import org.mapfish.print.map.readers.MapReaderFactoryFinder;
 import org.mapfish.print.output.OutputFactory;
@@ -26,6 +29,8 @@ public class ConfigFactory {
     private ThreadResources threadResources;
     @Autowired
     private MetricRegistry metricRegistry;
+    
+    private ObjectMapper mapper;
 
 
     public ConfigFactory() {
@@ -33,45 +38,63 @@ public class ConfigFactory {
 
     public ConfigFactory(ThreadResources threadResources) {
         // this is mainly for testing.  normally a factory should be part of spring configuration.
+        mapper = new ObjectMapper(new YAMLFactory());
+        mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
         this.threadResources = threadResources;
     }
-
-
 
     /**
      * Create an instance out of the given file.
      */
     public Config fromYaml(File file) throws FileNotFoundException {
-        YamlConfig config = new CustomYamlConfig();
-        Config result = config.loadType(file, Config.class);
-        result.setOutputFactory(outputFactoryFinder);
-        result.setMapReaderFactoryFinder(mapReaderFactoryFinder);
-        result.setThreadResources(this.threadResources);
-        result.setMetricRegistry(this.metricRegistry);
+        Config result = parseConfigFromFile(file);
+        initializeConfig(result);
         result.validate();
         return result;
+    }
+
+    private Config parseConfigFromFile(File file) {
+        try {
+            return mapper.readValue(file, Config.class);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Config fromInputStream(InputStream instream) {
-        YamlConfig config = new CustomYamlConfig();
-        Config result = config.loadType(instream, Config.class);
-        result.setOutputFactory(outputFactoryFinder);
-        result.setMapReaderFactoryFinder(mapReaderFactoryFinder);
-        result.setThreadResources(this.threadResources);
-        result.setMetricRegistry(this.metricRegistry);
+        Config result = parseConfigFromStream(instream);
+        initializeConfig(result);
         result.validate();
         return result;
+    }
+
+    private Config parseConfigFromStream(InputStream instream) {
+        try {
+            return mapper.readValue(instream, Config.class);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public Config fromString(String strConfig) {
-        YamlConfig config = new CustomYamlConfig();
-        Config result = config.loadType(strConfig, Config.class);
-        result.setOutputFactory(outputFactoryFinder);
-        result.setMapReaderFactoryFinder(mapReaderFactoryFinder);
-        result.setThreadResources(this.threadResources);
-        result.setMetricRegistry(this.metricRegistry);
+        Config result = parseConfigFromString(strConfig);
+        initializeConfig(result);
         result.validate();
         return result;
     }
 
+    private Config parseConfigFromString(String strConfig) {
+        try {
+            return mapper.readValue(strConfig, Config.class);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void initializeConfig(Config result) {
+        result.setOutputFactory(outputFactoryFinder);
+        result.setMapReaderFactoryFinder(mapReaderFactoryFinder);
+        result.setThreadResources(this.threadResources);
+        result.setMetricRegistry(this.metricRegistry);
+    }
 }
