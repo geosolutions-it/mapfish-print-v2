@@ -34,19 +34,24 @@ public class ConfigFactory {
 
 
     public ConfigFactory() {
+        initMapper();
     }
 
     public ConfigFactory(ThreadResources threadResources) {
         // this is mainly for testing.  normally a factory should be part of spring configuration.
+        initMapper();
+        this.threadResources = threadResources;
+    }
+
+    private void initMapper() {
         mapper = new ObjectMapper(new YAMLFactory());
         mapper.enable(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS);
-        this.threadResources = threadResources;
     }
 
     /**
      * Create an instance out of the given file.
      */
-    public Config fromYaml(File file) throws FileNotFoundException {
+    public Config fromYaml(File file) {
         Config result = parseConfigFromFile(file);
         initializeConfig(result);
         result.validate();
